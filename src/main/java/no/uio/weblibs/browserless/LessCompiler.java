@@ -18,27 +18,28 @@
 package no.uio.weblibs.browserless;
 
 import java.io.IOException;
-import java.io.StringReader;
-import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 
+import org.apache.maven.plugin.logging.Log;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
-import com.yahoo.platform.yui.compressor.CssCompressor;
-
 public class LessCompiler {
+
+    private Log log;
 
     private final Path lessJsPath;
 
     private final WebDriver driver;
 
     private boolean compress = false;
+
+    private boolean relativeUrls;
 
     private String encoding = "UTF-8";
 
@@ -53,8 +54,18 @@ public class LessCompiler {
     }
 
 
+    public void setLog(final Log log) {
+        this.log = log;
+    }
+
+
     public void setCompress(final boolean compress) {
         this.compress = compress;
+    }
+
+
+    public void setRelativeUrls(final boolean relativeUrls) {
+        this.relativeUrls = relativeUrls;
     }
 
 
@@ -67,19 +78,21 @@ public class LessCompiler {
         String html = getHtmlPageForLessFile(lessFile);
 
         String css = executeHtmlAndGetCss(html);
-        if (compress) {
-            css = compressCss(css);
+        if (relativeUrls) {
+            Path relativeDirectory = lessFile.getParent();
+            css = relativizeUrls(relativeDirectory, css);
         }
         return css;
     }
 
 
-    private String compressCss(final String css) throws IOException {
-        CssCompressor compressor = new CssCompressor(new StringReader(css));
-
-        StringWriter writer = new StringWriter();
-        compressor.compress(writer, -1);
-        return writer.toString();
+    private String relativizeUrls(final Path root, String css) {
+        long start = System.currentTimeMillis();
+        CssFileUriRelativizer relativizer = new CssFileUriRelativizer(root);
+        css = relativizer.relativizeCss(css);
+        long end = System.currentTimeMillis();
+        log("Relativized URLs in " + (end - start) + " ms");
+        return css;
     }
 
 
@@ -108,6 +121,11 @@ public class LessCompiler {
 
 
     private String executeFileAndGetCss(final Path file) {
+        if (compress) {
+            log("Executing less.js with CSS compression enabled");
+        } else {
+            log("Executing less.js with CSS compression disabled");
+        }
         driver.get(file.toUri().toString());
 
         WebElement styleElement = driver.findElement(By.tagName("style"));
@@ -124,8 +142,16 @@ public class LessCompiler {
                 + "<html>"
                 + "<head>"
                 + "<link rel=\"stylesheet/less\" type=\"text/css\" href=\"" + lessFile.toUri() + "\" />"
+                + "<script>less = { compress: " + compress + " }</script>"
                 + "<script type=\"text/javascript\" src=\"" + lessJsPath.toUri() + "\"></script>"
                 + "</head>"
                 + "</html>";
+    }
+
+
+    private void log(final String message) {
+        if (log != null) {
+            log.info(message);
+        }
     }
 }

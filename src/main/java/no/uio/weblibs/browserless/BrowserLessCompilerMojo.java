@@ -56,6 +56,13 @@ public class BrowserLessCompilerMojo extends AbstractLessCompilerMojo {
     private boolean compress;
 
     /**
+     * When <code>true</code> the CSS URLs will be absolute to the file system
+     *
+     * @parameter property="browserless.absolutePaths" default-value="false"
+     */
+    private boolean absolutePaths;
+
+    /**
      * The character encoding the LESS compiler will use for writing the CSS stylesheets.
      *
      * @parameter property="browserless.encoding" default-value="${project.build.sourceEncoding}"
@@ -92,8 +99,10 @@ public class BrowserLessCompilerMojo extends AbstractLessCompilerMojo {
         WebDriver driver = getDriver();
 
         LessCompiler less = new LessCompiler(lessJs.toPath(), driver);
+        less.setLog(getLog());
         less.setCompress(compress);
         less.setEncoding(encoding);
+        less.setRelativeUrls(!absolutePaths);
 
         for (String fileName : includedFiles) {
             try {
@@ -129,12 +138,17 @@ public class BrowserLessCompilerMojo extends AbstractLessCompilerMojo {
 
 
     private Path getTargetPath(final String fileName) throws MojoExecutionException {
-        if (!outputDirectory.exists() && !outputDirectory.mkdirs()) {
-            throw new MojoExecutionException("Cannot create output directory " + outputDirectory);
-        }
-
         String compiledName = fileName.replace(".less", ".css");
-        return outputDirectory.toPath().resolve(compiledName);
+        Path target = outputDirectory.toPath().resolve(compiledName);
+        mkdirs(target.getParent().toFile());
+        return target;
+    }
+
+
+    private void mkdirs(final File directory) throws MojoExecutionException {
+        if (!directory.exists() && !directory.mkdirs()) {
+            throw new MojoExecutionException("Cannot create directory " + directory);
+        }
     }
 
 
