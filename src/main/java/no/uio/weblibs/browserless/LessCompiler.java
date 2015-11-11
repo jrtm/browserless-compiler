@@ -26,6 +26,7 @@ import java.nio.file.StandardOpenOption;
 
 import org.apache.maven.plugin.logging.Log;
 import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
@@ -128,8 +129,12 @@ public class LessCompiler {
         }
         driver.get(file.toUri().toString());
 
-        WebElement styleElement = driver.findElement(By.tagName("style"));
-        return styleElement.getText();
+        try {
+            WebElement styleElement = driver.findElement(By.tagName("style"));
+            return styleElement.getText();
+        } catch (NoSuchElementException e) {
+            throw new RuntimeException("Compiled less not found");
+        }
     }
 
 
@@ -142,7 +147,7 @@ public class LessCompiler {
                 + "<html>"
                 + "<head>"
                 + "<link rel=\"stylesheet/less\" type=\"text/css\" href=\"" + lessFile.toUri() + "\" />"
-                + "<script>less = { compress: " + compress + " }</script>"
+                + "<script>less = { compress: " + compress + ", errorReporting: 'console' }</script>"
                 + "<script type=\"text/javascript\" src=\"" + lessJsPath.toUri() + "\"></script>"
                 + "</head>"
                 + "</html>";

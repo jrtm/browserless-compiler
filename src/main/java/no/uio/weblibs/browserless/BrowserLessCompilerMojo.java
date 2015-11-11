@@ -23,6 +23,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -96,6 +98,8 @@ public class BrowserLessCompilerMojo extends AbstractLessCompilerMojo {
                     "]");
         }
 
+        Logger.getLogger("com.gargoylesoftware").setLevel(Level.SEVERE);
+
         WebDriver driver = getDriver();
 
         LessCompiler less = new LessCompiler(lessJs.toPath(), driver);
@@ -108,8 +112,8 @@ public class BrowserLessCompilerMojo extends AbstractLessCompilerMojo {
             try {
                 compileLessFile(less, fileName);
             } catch (Exception e) {
-                getLog().error("Error compiling less files:" + e, e);
-                e.printStackTrace();
+                getLog().error("Error compiling less file " + fileName + ": " + e.getMessage());
+                throw new MojoExecutionException(e.getMessage(), e);
             }
         }
 
